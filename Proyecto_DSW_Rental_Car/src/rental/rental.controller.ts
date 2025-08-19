@@ -61,6 +61,11 @@ export class RentalController {
     }
 
     async updateRental(req: Request, res: Response): Promise<void> {
+ codex/update-deleterental-and-rental-state-handling
+        const rentalId = req.params.id;
+        const input = req.body;
+
+
         const rentalId = req.params.id;
         const input = req.body;
 
@@ -81,6 +86,7 @@ export class RentalController {
             return;
         }
 
+ main
         const updatedRental = new Rental(
             input.userId,
             input.carId,
@@ -92,6 +98,12 @@ export class RentalController {
 
         await rentalRepository.update(rentalId, updatedRental);
 
+ codex/update-deleterental-and-rental-state-handling
+        if (updatedRental.status === 'completed' || updatedRental.status === 'cancelled') {
+            await carRepository.partialUpdate(String(updatedRental.carId), { available: true });
+        }
+
+ main
         res.status(201).json({ data: updatedRental });
     }
     async partiallyUpdateRental(req: Request, res: Response): Promise<void> {
@@ -106,6 +118,10 @@ export class RentalController {
                 errorCode: 'RENTAL_NOT_FOUND'
             });
             return;
+        }
+        if (updatedRental.status === 'completed' || updatedRental.status === 'cancelled') {
+            const carId = (updatedRental as any).carId ?? (updatedRental as any).carid;
+            await carRepository.partialUpdate(String(carId), { available: true });
         }
 
         res.status(200).json({ data: updatedRental });
@@ -122,6 +138,9 @@ export class RentalController {
             });
             return;
         }
+
+        const carId = (deleted as any).carId ?? (deleted as any).carid;
+        await carRepository.partialUpdate(String(carId), { available: true });
 
         res.status(204).send();
     }
