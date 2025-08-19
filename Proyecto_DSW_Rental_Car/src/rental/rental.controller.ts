@@ -1,8 +1,10 @@
 import { Request, Response } from "express";
 import { Rental } from "./rental.entity.js";
 import { RentalPostgresRepository } from "./rental.postgres.repository.js";
+import { CarPostgresRepository } from "../car/car.postgres.repository.js";
 
 const rentalRepository = new RentalPostgresRepository();
+const carRepository = new CarPostgresRepository();
 
 export class RentalController {
 
@@ -55,6 +57,10 @@ export class RentalController {
 
         await rentalRepository.update(rentalId, updatedRental);
 
+        if (updatedRental.status === 'completed' || updatedRental.status === 'cancelled') {
+            await carRepository.partialUpdate(String(updatedRental.carId), { available: true });
+        }
+
         res.status(201).json({ data: updatedRental });
     }
     async partiallyUpdateRental(req: Request, res: Response): Promise<void> {
@@ -69,6 +75,10 @@ export class RentalController {
                 errorCode: 'RENTAL_NOT_FOUND'
             });
             return;
+        }
+        if (updatedRental.status === 'completed' || updatedRental.status === 'cancelled') {
+            const carId = (updatedRental as any).carId ?? (updatedRental as any).carid;
+            await carRepository.partialUpdate(String(carId), { available: true });
         }
 
         res.status(200).json({ data: updatedRental });
@@ -85,6 +95,9 @@ export class RentalController {
             });
             return;
         }
+
+        const carId = (deleted as any).carId ?? (deleted as any).carid;
+        await carRepository.partialUpdate(String(carId), { available: true });
 
         res.status(204).send();
     }
