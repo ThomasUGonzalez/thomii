@@ -1,8 +1,10 @@
 import { Request, Response } from "express";
 import { Rental } from "./rental.entity.js";
 import { RentalPostgresRepository } from "./rental.postgres.repository.js";
+import { CarPostgresRepository } from "../car/car.postgres.repository.js";
 
 const rentalRepository = new RentalPostgresRepository();
+const carRepository = new CarPostgresRepository();
 
 export class RentalController {
 
@@ -26,6 +28,16 @@ export class RentalController {
 
     async addRental(req: Request, res: Response) {
         const input = req.body;
+
+        const car = await carRepository.findOne(input.carId);
+        if (!car || !car.available) {
+            res.status(400).json({
+                errorMessage: 'Car not available',
+                errorCode: 'CAR_NOT_AVAILABLE'
+            });
+            return;
+        }
+
         const newRental = new Rental(
             input.userId,
             input.carId,
@@ -36,6 +48,7 @@ export class RentalController {
         );
 
         await rentalRepository.add(newRental);
+        await carRepository.partialUpdate(input.carId, { available: false });
 
         res.status(201).json({ data: newRental });
     }
