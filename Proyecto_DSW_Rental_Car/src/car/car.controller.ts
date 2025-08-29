@@ -28,6 +28,7 @@ export class CarController {
 
         const input = req.body;
         const newCar = new Car(
+            undefined,
             input.brand,
             input.model,
             input.year,
@@ -47,6 +48,7 @@ export class CarController {
         const input = req.body;
 
         const updatedCar = new Car(
+            carId,
             input.brand,
             input.model,
             input.year,

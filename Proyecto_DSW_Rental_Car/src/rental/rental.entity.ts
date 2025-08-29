@@ -1,10 +1,44 @@
+import { Car } from "../car/car.entity";
+import { IUser } from "../user/user.entity";
+
 export class Rental {
+    public id?: string;
+    public user: IUser;
+    public car: Car;
+    public startDate: Date;
+    public endDate: Date;
+    public price: number;
+    private _status: string;
+
     constructor(
-        public userId: string,
-        public carId: number,
-        public startDate: Date,
-        public endDate: Date,
-        public price: number,
-        public status: string,
-    ) {}
+        user: IUser,
+        car: Car,
+        startDate: Date,
+        endDate: Date,
+        price: number,
+        status: string,
+        id?: string
+    ) {
+        this.id = id;
+        this.user = user;
+        this.car = car;
+        this.startDate = startDate;
+        this.endDate = endDate;
+        this.price = price;
+        this._status = status;
+        if (status === "reserved") {
+            this.car.available = false;
+        }
+    }
+
+    get status(): string {
+        return this._status;
+    }
+
+    set status(newStatus: string) {
+        this._status = newStatus;
+        if (newStatus === "reserved") {
+            this.car.available = false;
+        }
+    }
 }

@@ -41,4 +41,4 @@ Content-Type: application/json
 }
 
 ### borrar un car
-DELETE http://localhost:3000/api/cars/1
+DELETE http://localhost:3000/api/cars/2

@@ -1,9 +1,12 @@
-POST http://localhost:3000/api/users/login
+POST http://localhost:3000/api/users
 Content-Type: application/json
 
 {
-  "username": "testuser2",
-  "password": "secure1234"
+  "username": "testuser",
+  "name": "Test User",
+  "password": "secure12345"
 }
 
 ###
+GET http://localhost:3000/api/users
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4YjFhNTIyNzEwYzFiMTMyZDA4MzcyZCIsImlhdCI6MTc1NjQ3Mjg2OCwiZXhwIjoxNzU2NDc2NDY4fQ.wfscFVaSUENIigfVT0C2dx857qaKrdGk9l8MAQ5JRvY

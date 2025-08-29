@@ -1,19 +1,11 @@
 import { Request, Response } from "express";
-codex/update-rental-controller-for-car-validation
 import { Rental } from "./rental.entity.js";
 import { RentalPostgresRepository } from "./rental.postgres.repository.js";
 import { CarPostgresRepository } from "../car/car.postgres.repository.js";
+import { findUserById } from "../user/user.service.js";
 
 const rentalRepository = new RentalPostgresRepository();
 const carRepository = new CarPostgresRepository();
-
-import { Rental } from "./rental.entity.js";
-import { RentalPostgresRepository } from "./rental.postgres.repository.js";
-import { CarPostgresRepository } from "../car/car.postgres.repository.js";
-
-const rentalRepository = new RentalPostgresRepository();
-const carRepository = new CarPostgresRepository();
-main
 
 export class RentalController {
 
@@ -35,34 +27,6 @@ export class RentalController {
         res.json({ data: rental });
     }
 
- codex/update-rental-controller-for-car-validation
-    async addRental(req: Request, res: Response) {
-        const input = req.body;
-
-        const car = await carRepository.findOne(input.carId);
-        if (!car || !car.available) {
-            res.status(400).json({
-                errorMessage: 'Car not available',
-                errorCode: 'CAR_NOT_AVAILABLE'
-            });
-            return;
-        }
-
-        const newRental = new Rental(
-            input.userId,
-            input.carId,
-            input.startDate,
-            input.endDate,
-            input.price,
-            input.status
-        );
-
-        await rentalRepository.add(newRental);
-        await carRepository.partialUpdate(input.carId, { available: false });
-
-        res.status(201).json({ data: newRental });
-    }
-
     async addRental(req: Request, res: Response) {
         const input = req.body;
 
@@ -75,7 +39,7 @@ export class RentalController {
             return;
         }
 
-        if (!car.available) {
+        if (!car.available && input.status === "reserved") {
             res.status(400).json({
                 errorMessage: 'Car not available',
                 errorCode: 'CAR_NOT_AVAILABLE'
@@ -83,27 +47,30 @@ export class RentalController {
             return;
         }
 
+        const user = await findUserById(input.userId);
+        if (!user) {
+            res.status(404).json({
+                errorMessage: 'User not found',
+                errorCode: 'USER_NOT_FOUND'
+            });
+            return;
+        }
+
         const newRental = new Rental(
-            input.userId,
-            input.carId,
+            user,
+            car,
             input.startDate,
             input.endDate,
             input.price,
             input.status
         );
 
-        await rentalRepository.add(newRental);
+        const savedRental = await rentalRepository.add(newRental);
 
-        res.status(201).json({ data: newRental });
+        res.status(201).json({ data: savedRental });
     }
-main
 
     async updateRental(req: Request, res: Response): Promise<void> {
- codex/update-deleterental-and-rental-state-handling
-        const rentalId = req.params.id;
-        const input = req.body;
-
-
         const rentalId = req.params.id;
         const input = req.body;
 
@@ -116,7 +83,7 @@ main
             return;
         }
 
-        if (!car.available) {
+        if (!car.available && input.status === "reserved") {
             res.status(400).json({
                 errorMessage: 'Car not available',
                 errorCode: 'CAR_NOT_AVAILABLE'
@@ -124,10 +91,18 @@ main
             return;
         }
 
- main
+        const user = await findUserById(input.userId);
+        if (!user) {
+            res.status(404).json({
+                errorMessage: 'User not found',
+                errorCode: 'USER_NOT_FOUND'
+            });
+            return;
+        }
+
         const updatedRental = new Rental(
-            input.userId,
-            input.carId,
+            user,
+            car,
             input.startDate,
             input.endDate,
             input.price,
@@ -136,19 +111,46 @@ main
 
         await rentalRepository.update(rentalId, updatedRental);
 
- codex/update-deleterental-and-rental-state-handling
-        if (updatedRental.status === 'completed' || updatedRental.status === 'cancelled') {
-            await carRepository.partialUpdate(String(updatedRental.carId), { available: true });
-        }
-
- main
         res.status(201).json({ data: updatedRental });
     }
     async partiallyUpdateRental(req: Request, res: Response): Promise<void> {
         const rentalId = req.params.id;
         const input = req.body;
 
-        const updatedRental = await rentalRepository.partialUpdate(rentalId, input);
+        let car, user;
+        if (input.carId) {
+            car = await carRepository.findOne(input.carId);
+            if (!car) {
+                res.status(404).json({
+                    errorMessage: 'Car not found',
+                    errorCode: 'CAR_NOT_FOUND'
+                });
+                return;
+            }
+        }
+        if (input.userId) {
+            user = await findUserById(input.userId);
+            if (!user) {
+                res.status(404).json({
+                    errorMessage: 'User not found',
+                    errorCode: 'USER_NOT_FOUND'
+                });
+                return;
+            }
+        }
+        if (input.status === "reserved" && car && !car.available) {
+            res.status(400).json({
+                errorMessage: 'Car not available',
+                errorCode: 'CAR_NOT_AVAILABLE'
+            });
+            return;
+        }
+        
+        const patchInput = { ...input };
+        if (car) patchInput.car = car;
+        if (user) patchInput.user = user;
+
+        const updatedRental = await rentalRepository.partialUpdate(rentalId, patchInput);
 
         if (!updatedRental) {
             res.status(404).json({
@@ -156,10 +158,6 @@ main
                 errorCode: 'RENTAL_NOT_FOUND'
             });
             return;
-        }
-        if (updatedRental.status === 'completed' || updatedRental.status === 'cancelled') {
-            const carId = (updatedRental as any).carId ?? (updatedRental as any).carid;
-            await carRepository.partialUpdate(String(carId), { available: true });
         }
 
         res.status(200).json({ data: updatedRental });
@@ -176,9 +174,6 @@ main
             });
             return;
         }
-
-        const carId = (deleted as any).carId ?? (deleted as any).carid;
-        await carRepository.partialUpdate(String(carId), { available: true });
 
         res.status(204).send();
     }
